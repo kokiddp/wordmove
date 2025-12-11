@@ -150,8 +150,13 @@ module Wordmove
       end
 
       def mysql_import_command(dump_path, options)
-        mysql_command = mysql_client_command(options)
+        mysql_command = mysql_client_command(options, import: true)
         escaped_dump_path = Shellwords.escape(dump_path)
+
+        init_commands = [
+          "SET autocommit=0",
+          "SET FOREIGN_KEY_CHECKS=0"
+        ].join('; ')
 
         sanitize_and_import = <<~SH
           first_line=$(head -n 1 #{escaped_dump_path} 2>/dev/null || true)
@@ -162,7 +167,7 @@ module Wordmove
             cat #{escaped_dump_path} > "$tmp_dump"
           fi
           printf "\\nCOMMIT;\\n" >> "$tmp_dump"
-          #{mysql_command} --init-command="SET autocommit=0" < "$tmp_dump"
+          #{mysql_command} --init-command="#{init_commands}" < "$tmp_dump"
           import_status=$?
           rm -f "$tmp_dump"
           exit $import_status
@@ -213,7 +218,7 @@ module Wordmove
         '$(command -v mariadb-dump >/dev/null 2>&1 && echo mariadb-dump || echo mysqldump)'
       end
 
-      def mysql_client_command(options)
+      def mysql_client_command(options, import: false)
         command = [mysql_client_binary]
         command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
         command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
@@ -222,6 +227,7 @@ module Wordmove
           command << "--password=#{Shellwords.escape(options[:password])}"
         end
         command << "--database=#{Shellwords.escape(options[:name])}"
+        command << "--force" if import
         command << Shellwords.split(options[:mysql_options]) if options[:mysql_options].present?
         command.join(" ")
       end

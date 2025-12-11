@@ -123,8 +123,8 @@ describe Wordmove::Deployer::Base do
         "fi",
         "printf \"\\\\nCOMMIT;\\\\n\" >> \"$tmp_dump\"",
         "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost "\
-          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP "\
-          "--init-command=\"SET autocommit=0\" < \"$tmp_dump\"",
+          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --force --protocol=TCP "\
+          "--init-command=\"SET autocommit=0; SET FOREIGN_KEY_CHECKS=0\" < \"$tmp_dump\"",
         "import_status=$?",
         "rm -f \"$tmp_dump\"",
         "exit $import_status"
