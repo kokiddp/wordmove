@@ -234,21 +234,29 @@ module Wordmove
 
         temp_dump = Tempfile.new(['wordmove-collation', '.sql'])
         begin
-          File.open(dump_path, 'r') do |input|
-            File.open(temp_dump.path, 'w') do |output|
+          File.open(dump_path, 'rb') do |input|
+            File.open(temp_dump.path, 'wb') do |output|
               input.each_line do |line|
+                # Ensure we do not explode on invalid byte sequences coming from dumps
+                safe_line = begin
+                  line.force_encoding(Encoding::UTF_8)
+                  line.encode(Encoding::UTF_8, invalid: :replace, undef: :replace, replace: '')
+                rescue StandardError
+                  line.dup.force_encoding(Encoding::UTF_8)
+                end
+
                 replaced_collation = false
                 mappings.each do |pattern, replacement|
-                  next unless line.match?(pattern)
+                  next unless safe_line.match?(pattern)
 
                   if replacement.is_a?(Hash)
-                    line = line.gsub(pattern, replacement[:collation])
+                    safe_line = safe_line.gsub(pattern, replacement[:collation])
                     replaced_collation = true
                     if replacement[:charset]
-                      line = line.gsub(/utf8mb3\b/, replacement[:charset])
+                      safe_line = safe_line.gsub(/utf8mb3\b/, replacement[:charset])
                     end
                   else
-                    line = line.gsub(pattern, replacement)
+                    safe_line = safe_line.gsub(pattern, replacement)
                     replaced_collation = true
                   end
                 end
@@ -256,10 +264,10 @@ module Wordmove
                 # If we replaced collations but still see utf8mb3, upgrade charset to avoid mismatches
                 if replaced_collation
                   charset_map.each do |pattern, replacement|
-                    line = line.gsub(pattern, replacement)
+                    safe_line = safe_line.gsub(pattern, replacement)
                   end
                 end
-                output.write(line)
+                output.write(safe_line)
               end
             end
           end
