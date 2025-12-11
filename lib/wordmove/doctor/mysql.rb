@@ -26,18 +26,18 @@ module Wordmove
       private
 
       def mysql_client_doctor
-        if system("which mysql", out: File::NULL)
-          logger.success "`mysql` command is in $PATH"
+        if mysql_client_in_path?
+          logger.success "`mysql`/`mariadb` command is in $PATH"
         else
-          logger.error "`mysql` command is not in $PATH"
+          logger.error "`mysql`/`mariadb` command is not in $PATH"
         end
       end
 
       def mysqldump_doctor
-        if system("which mysqldump", out: File::NULL)
-          logger.success "`mysqldump` command is in $PATH"
+        if mysqldump_in_path?
+          logger.success "`mysqldump`/`mariadb-dump` command is in $PATH"
         else
-          logger.error "`mysqldump` command is not in $PATH"
+          logger.error "`mysqldump`/`mariadb-dump` command is not in $PATH"
         end
       end
 
@@ -79,7 +79,7 @@ module Wordmove
       end
 
       def mysql_command(database: nil)
-        command = ["mysql"]
+        command = [mysql_client_binary]
         command << "--host=#{Shellwords.escape(config[:host])}" if config[:host].present?
         command << "--port=#{Shellwords.escape(config[:port])}" if config[:port].present?
         command << "--user=#{Shellwords.escape(config[:user])}" if config[:user].present?
@@ -89,6 +89,18 @@ module Wordmove
         command << database if database.present?
         command << "-e'QUIT'"
         command.join(" ")
+      end
+
+      def mysql_client_binary
+        '$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql)'
+      end
+
+      def mysql_client_in_path?
+        system("which mysql", out: File::NULL) || system("which mariadb", out: File::NULL)
+      end
+
+      def mysqldump_in_path?
+        system("which mysqldump", out: File::NULL) || system("which mariadb-dump", out: File::NULL)
       end
     end
   end

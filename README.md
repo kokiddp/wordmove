@@ -1,6 +1,6 @@
 # Wordmove
 
-This is a customized solution that resolves wp-command errors occurring during database synchronization inside a Docker container, and also skips the newly added “Sandbox Mode” line that appears at the beginning of dump files when using certain versions of MariaDB.
+This is a customized solution that resolves wp-command errors occurring during database synchronization inside a Docker container, and also skips the newly added “Sandbox Mode” line that appears at the beginning of dump files when using certain versions of MariaDB. It also prefers MariaDB client binaries (`mariadb`/`mariadb-dump`) when available, avoiding the deprecation warning for the legacy `mysql` client on newer MariaDB releases.
 
 ```
 /*!999999\- enable the sandbox mode */

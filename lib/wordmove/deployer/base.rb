@@ -4,6 +4,7 @@ module Wordmove
       attr_reader :options
       attr_reader :logger
       attr_reader :environment
+      SANDBOX_MAGIC_COMMENT = '/*!999999- enable the sandbox mode */'.freeze
 
       class << self
         def deployer_for(cli_options)
@@ -130,7 +131,7 @@ module Wordmove
       end
 
       def mysql_dump_command(options, save_to_path)
-        command = ["mysqldump"]
+        command = [mysql_dump_binary]
         command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
         command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
         command << "--user=#{Shellwords.escape(options[:user])}" if options[:user].present?
@@ -146,33 +147,24 @@ module Wordmove
       end
 
       def mysql_import_command(dump_path, options)
-        if options[:origin] == 'local'
-          # ファイルの最初の行を読み取る
-          first_line = File.open(dump_path, &:readline).strip
+        mysql_command = mysql_client_command(options)
+        escaped_dump_path = Shellwords.escape(dump_path)
 
-          # コマンドを構築
-          if first_line == '/*!999999\\- enable the sandbox mode */'
-            command = ["tail -n +2 #{Shellwords.escape(dump_path)} | mysql"]
+        sanitize_and_import = <<~SH
+          first_line=$(head -n 1 #{escaped_dump_path} 2>/dev/null || true)
+          if [ "$first_line" = '#{SANDBOX_MAGIC_COMMENT}' ]; then
+            tmp_dump="$(mktemp)"
+            tail -n +2 #{escaped_dump_path} > "$tmp_dump"
+            #{mysql_command} --execute="SET autocommit=0; SOURCE $tmp_dump; COMMIT"
+            import_status=$?
+            rm -f "$tmp_dump"
+            exit $import_status
           else
-            command = ["mysql"]
-          end
-        else
-          command = ["mysql"]
-        end
-        command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
-        command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
-        command << "--user=#{Shellwords.escape(options[:user])}" if options[:user].present?
-        if options[:password].present?
-          command << "--password=#{Shellwords.escape(options[:password])}"
-        end
-        command << "--database=#{Shellwords.escape(options[:name])}"
-        command << Shellwords.split(options[:mysql_options]) if options[:mysql_options].present?
+            #{mysql_command} --execute="SET autocommit=0; SOURCE #{escaped_dump_path}; COMMIT"
+          fi
+        SH
 
-        # 通常のコマンド実行時のみ --execute オプションを追加
-        unless first_line == '/*!999999\\- enable the sandbox mode */'
-          command << "--execute=\"SET autocommit=0; SOURCE #{Shellwords.escape(dump_path)}; COMMIT\""
-        end
-        command.join(" ")
+        sanitize_and_import.split("\n").map(&:strip).reject(&:empty?).join("; ")
       end
 
       def compress_command(path)
@@ -207,6 +199,27 @@ module Wordmove
 
       def local_options
         options[:local].clone
+      end
+
+      def mysql_client_binary
+        '$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql)'
+      end
+
+      def mysql_dump_binary
+        '$(command -v mariadb-dump >/dev/null 2>&1 && echo mariadb-dump || echo mysqldump)'
+      end
+
+      def mysql_client_command(options)
+        command = [mysql_client_binary]
+        command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
+        command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
+        command << "--user=#{Shellwords.escape(options[:user])}" if options[:user].present?
+        if options[:password].present?
+          command << "--password=#{Shellwords.escape(options[:password])}"
+        end
+        command << "--database=#{Shellwords.escape(options[:name])}"
+        command << Shellwords.split(options[:mysql_options]) if options[:mysql_options].present?
+        command.join(" ")
       end
     end
   end
