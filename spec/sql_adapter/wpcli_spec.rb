@@ -37,7 +37,7 @@ describe Wordmove::SqlAdapter::Wpcli do
       before do
         allow(adapter)
           .to receive(:`)
-          .with('wp cli param-dump --with-values')
+          .with('wp cli param-dump --allow-root --with-values')
           .and_return("{\"path\":{\"current\":\"\/path\/to\/pudding\"}}")
       end
       context "but still reachable by wp-cli" do
@@ -51,6 +51,7 @@ describe Wordmove::SqlAdapter::Wpcli do
 
     context "without any wp-cli configuration" do
       it "returns the right command with '--path' flag set to local_path" do
+        allow(adapter).to receive(:`).with('wp cli param-dump --allow-root --with-values').and_return("{}")
         expect(adapter.command)
           .to eq("wp search-replace --path=/path/to/ham sausage bacon --quiet "\
                  "--skip-columns=guid --all-tables --allow-root")

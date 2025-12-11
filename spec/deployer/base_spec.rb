@@ -113,25 +113,25 @@ describe Wordmove::Deployer::Base do
         name: "database_name",
         mysql_options: "--protocol=TCP"
       )
-      expect(command).to eq(
-        [
-          "first_line=$(head -n 1 ./my\\\\ dump.sql 2>/dev/null || true)",
-          "if [ \"$first_line\" = '/*!999999- enable the sandbox mode */' ]; then",
-          "tmp_dump=\"$(mktemp)\"",
-          "tail -n +2 ./my\\\\ dump.sql > \"$tmp_dump\"",
-          "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost",
-          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP",
+      expected = [
+        "first_line=$(head -n 1 ./my\\ dump.sql 2>/dev/null || true)",
+        "if [ \"$first_line\" = '/*!999999- enable the sandbox mode */' ]; then",
+        "tmp_dump=\"$(mktemp)\"",
+        "tail -n +2 ./my\\ dump.sql > \"$tmp_dump\"",
+        "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost "\
+          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP "\
           "--execute=\"SET autocommit=0; SOURCE $tmp_dump; COMMIT\"",
-          "import_status=$?",
-          "rm -f \"$tmp_dump\"",
-          "exit $import_status",
-          "else",
-          "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost",
-          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP",
-          "--execute=\"SET autocommit=0; SOURCE ./my\\\\ dump.sql; COMMIT\"",
-          "fi"
-        ].join("\n")
-      )
+        "import_status=$?",
+        "rm -f \"$tmp_dump\"",
+        "exit $import_status",
+        "else",
+        "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost "\
+          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP "\
+          "--execute=\"SET autocommit=0; SOURCE ./my\\ dump.sql; COMMIT\"",
+        "fi"
+      ].join("\n")
+
+      expect(command).to eq(expected)
     end
   end
 
