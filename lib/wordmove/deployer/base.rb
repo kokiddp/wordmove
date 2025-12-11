@@ -1,3 +1,6 @@
+require 'tempfile'
+require 'fileutils'
+
 module Wordmove
   module Deployer
     class Base
@@ -220,6 +223,49 @@ module Wordmove
         command << "--database=#{Shellwords.escape(options[:name])}"
         command << Shellwords.split(options[:mysql_options]) if options[:mysql_options].present?
         command.join(" ")
+      end
+
+      def normalize_collations!(dump_path)
+        return if simulate?
+
+        mappings = collation_fallbacks
+        return if mappings.empty?
+
+        temp_dump = Tempfile.new(['wordmove-collation', '.sql'])
+        begin
+          File.open(dump_path, 'r') do |input|
+            File.open(temp_dump.path, 'w') do |output|
+              input.each_line do |line|
+                mappings.each do |pattern, replacement|
+                  line = line.gsub(pattern, replacement)
+                end
+                output.write(line)
+              end
+            end
+          end
+
+          FileUtils.mv(temp_dump.path, dump_path)
+        ensure
+          temp_dump.close!
+        end
+      end
+
+      def collation_fallbacks
+        raw_mappings = options.dig(:global, :collation_fallbacks) || default_collation_fallbacks
+        return {} unless raw_mappings
+
+        raw_mappings.each_with_object({}) do |(pattern, replacement), memo|
+          normalized_pattern = pattern.is_a?(Regexp) ? pattern : Regexp.new(Regexp.escape(pattern.to_s))
+          memo[normalized_pattern] = replacement
+        end
+      end
+
+      def default_collation_fallbacks
+        {
+          /utf8mb3_uca\d+_ai_ci/ => 'utf8mb4_unicode_ci',
+          /utf8mb3_uca\d+_as_cs/ => 'utf8mb4_unicode_ci',
+          /utf8mb3_unicode_520_ci/ => 'utf8mb4_unicode_ci'
+        }
       end
     end
   end

@@ -2,6 +2,15 @@
 
 This is a customized solution that resolves wp-command errors occurring during database synchronization inside a Docker container, and also skips the newly added “Sandbox Mode” line that appears at the beginning of dump files when using certain versions of MariaDB. It also prefers MariaDB client binaries (`mariadb`/`mariadb-dump`) when available, avoiding the deprecation warning for the legacy `mysql` client on newer MariaDB releases.
 
+It can also patch unsupported collations on the fly while importing dumps. You can override the defaults by adding a mapping in your `movefile.yml`:
+
+```yml
+global:
+  collation_fallbacks:
+    utf8mb3_uca1400_ai_ci: utf8mb4_unicode_ci
+    utf8mb3_uca1400_as_cs: utf8mb4_unicode_ci
+```
+
 ```
 /*!999999\- enable the sandbox mode */
 ```

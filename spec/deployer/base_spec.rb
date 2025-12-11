@@ -160,4 +160,25 @@ describe Wordmove::Deployer::Base do
       expect(command).to eq("gzip -d -f \"dummy file.sql\"")
     end
   end
+
+  context "#normalize_collations!" do
+    let(:deployer) { described_class.new(:dummy_env, options) }
+    let(:dump_file) { Tempfile.new(['collation', '.sql']) }
+
+    before do
+      allow(deployer).to receive(:simulate?).and_return(false)
+      dump_file.write("CREATE TABLE test (name varchar(10)) COLLATE utf8mb3_uca1400_ai_ci;\n")
+      dump_file.rewind
+    end
+
+    after do
+      dump_file.close!
+    end
+
+    it "replaces unsupported collations using defaults" do
+      deployer.send(:normalize_collations!, dump_file.path)
+
+      expect(File.read(dump_file.path)).to include("COLLATE utf8mb4_unicode_ci;")
+    end
+  end
 end

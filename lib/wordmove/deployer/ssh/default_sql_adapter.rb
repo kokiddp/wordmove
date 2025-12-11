@@ -11,6 +11,7 @@ module Wordmove
         def adapt_local_db!
           save_local_db(local_dump_path)
           adapt_sql(local_dump_path, local_options, remote_options)
+          normalize_collations!(local_dump_path)
           run compress_command(local_dump_path)
           import_remote_dump(local_gzipped_dump_path)
         end
@@ -28,6 +29,7 @@ module Wordmove
           download_remote_db(local_gzipped_dump_path)
           run uncompress_command(local_gzipped_dump_path)
           adapt_sql(local_dump_path, remote_options, local_options)
+          normalize_collations!(local_dump_path)
           run mysql_import_command(local_dump_path, local_options[:database])
         end
 
