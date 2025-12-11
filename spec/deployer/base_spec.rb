@@ -167,7 +167,7 @@ describe Wordmove::Deployer::Base do
 
     before do
       allow(deployer).to receive(:simulate?).and_return(false)
-      dump_file.write("CREATE TABLE test (name varchar(10)) COLLATE utf8mb3_uca1400_ai_ci;\n")
+      dump_file.write("CREATE TABLE test (name varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_uca1400_ai_ci) DEFAULT CHARSET=utf8mb3 COLLATE utf8mb3_uca1400_ai_ci;\n")
       dump_file.rewind
     end
 
@@ -175,10 +175,12 @@ describe Wordmove::Deployer::Base do
       dump_file.close!
     end
 
-    it "replaces unsupported collations using defaults" do
+    it "replaces unsupported collations and upgrades charset using defaults" do
       deployer.send(:normalize_collations!, dump_file.path)
 
-      expect(File.read(dump_file.path)).to include("COLLATE utf8mb4_unicode_ci;")
+      content = File.read(dump_file.path)
+      expect(content).to include("COLLATE utf8mb4_unicode_ci")
+      expect(content).to include("DEFAULT CHARSET=utf8mb4")
     end
   end
 end

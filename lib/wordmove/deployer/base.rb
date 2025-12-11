@@ -229,15 +229,35 @@ module Wordmove
         return if simulate?
 
         mappings = collation_fallbacks
-        return if mappings.empty?
+        charset_map = charset_fallbacks
+        return if mappings.empty? && charset_map.empty?
 
         temp_dump = Tempfile.new(['wordmove-collation', '.sql'])
         begin
           File.open(dump_path, 'r') do |input|
             File.open(temp_dump.path, 'w') do |output|
               input.each_line do |line|
+                replaced_collation = false
                 mappings.each do |pattern, replacement|
-                  line = line.gsub(pattern, replacement)
+                  next unless line.match?(pattern)
+
+                  if replacement.is_a?(Hash)
+                    line = line.gsub(pattern, replacement[:collation])
+                    replaced_collation = true
+                    if replacement[:charset]
+                      line = line.gsub(/utf8mb3\b/, replacement[:charset])
+                    end
+                  else
+                    line = line.gsub(pattern, replacement)
+                    replaced_collation = true
+                  end
+                end
+
+                # If we replaced collations but still see utf8mb3, upgrade charset to avoid mismatches
+                if replaced_collation
+                  charset_map.each do |pattern, replacement|
+                    line = line.gsub(pattern, replacement)
+                  end
                 end
                 output.write(line)
               end
@@ -256,16 +276,38 @@ module Wordmove
 
         raw_mappings.each_with_object({}) do |(pattern, replacement), memo|
           normalized_pattern = pattern.is_a?(Regexp) ? pattern : Regexp.new(Regexp.escape(pattern.to_s))
-          memo[normalized_pattern] = replacement
+          memo[normalized_pattern] = normalize_replacement(replacement)
         end
       end
 
       def default_collation_fallbacks
         {
-          /utf8mb3_uca\d+_ai_ci/ => 'utf8mb4_unicode_ci',
-          /utf8mb3_uca\d+_as_cs/ => 'utf8mb4_unicode_ci',
-          /utf8mb3_unicode_520_ci/ => 'utf8mb4_unicode_ci'
+          /utf8mb3_uca\d+_ai_ci/ => { collation: 'utf8mb4_unicode_ci', charset: 'utf8mb4' },
+          /utf8mb3_uca\d+_as_cs/ => { collation: 'utf8mb4_unicode_ci', charset: 'utf8mb4' },
+          /utf8mb3_unicode_520_ci/ => { collation: 'utf8mb4_unicode_ci', charset: 'utf8mb4' }
         }
+      end
+
+      def charset_fallbacks
+        raw_mappings = options.dig(:global, :charset_fallbacks) || default_charset_fallbacks
+        return {} unless raw_mappings
+
+        raw_mappings.each_with_object({}) do |(pattern, replacement), memo|
+          normalized_pattern = pattern.is_a?(Regexp) ? pattern : Regexp.new(Regexp.escape(pattern.to_s))
+          memo[normalized_pattern] = replacement
+        end
+      end
+
+      def default_charset_fallbacks
+        {
+          /utf8mb3\b/ => 'utf8mb4'
+        }
+      end
+
+      def normalize_replacement(replacement)
+        return replacement if replacement.is_a?(Hash)
+
+        { collation: replacement, charset: nil }
       end
     end
   end

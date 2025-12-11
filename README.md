@@ -9,6 +9,9 @@ global:
   collation_fallbacks:
     utf8mb3_uca1400_ai_ci: utf8mb4_unicode_ci
     utf8mb3_uca1400_as_cs: utf8mb4_unicode_ci
+  # Optionally force charset upgrades alongside collations
+  charset_fallbacks:
+    utf8mb3: utf8mb4
 ```
 
 ```
