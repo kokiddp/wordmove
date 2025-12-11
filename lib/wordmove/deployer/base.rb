@@ -164,7 +164,7 @@ module Wordmove
           fi
         SH
 
-        sanitize_and_import.split("\n").map(&:strip).reject(&:empty?).join("; ")
+        sanitize_and_import.split("\n").map(&:strip).reject(&:empty?).join("\n")
       end
 
       def compress_command(path)

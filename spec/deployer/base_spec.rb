@@ -130,7 +130,7 @@ describe Wordmove::Deployer::Base do
           "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --protocol=TCP",
           "--execute=\"SET autocommit=0; SOURCE ./my\\\\ dump.sql; COMMIT\"",
           "fi"
-        ].join("; ")
+        ].join("\n")
       )
     end
   end
