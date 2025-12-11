@@ -155,16 +155,17 @@ module Wordmove
 
         sanitize_and_import = <<~SH
           first_line=$(head -n 1 #{escaped_dump_path} 2>/dev/null || true)
+          tmp_dump="$(mktemp)"
           if [ "$first_line" = '#{SANDBOX_MAGIC_COMMENT}' ]; then
-            tmp_dump="$(mktemp)"
             tail -n +2 #{escaped_dump_path} > "$tmp_dump"
-            #{mysql_command} --execute="SET autocommit=0; SOURCE $tmp_dump; COMMIT"
-            import_status=$?
-            rm -f "$tmp_dump"
-            exit $import_status
           else
-            #{mysql_command} --execute="SET autocommit=0; SOURCE #{escaped_dump_path}; COMMIT"
+            cat #{escaped_dump_path} > "$tmp_dump"
           fi
+          printf "\\nCOMMIT;\\n" >> "$tmp_dump"
+          #{mysql_command} --init-command="SET autocommit=0" < "$tmp_dump"
+          import_status=$?
+          rm -f "$tmp_dump"
+          exit $import_status
         SH
 
         sanitize_and_import.split("\n").map(&:strip).reject(&:empty?).join("\n")
