@@ -1,3 +1,5 @@
+require 'shellwords'
+
 module Wordmove
   class Hook
     def self.logger
@@ -82,7 +84,7 @@ module Wordmove
       end
 
       def self.run(command_hash, options, simulate = false)
-        wordpress_path = options[:wordpress_path]
+        wordpress_path = Shellwords.escape(options[:wordpress_path].to_s)
 
         logger.task_step true, "Exec command: #{command_hash[:command]}"
         return true if simulate
@@ -106,7 +108,7 @@ module Wordmove
 
       def self.run(command_hash, options, simulate = false)
         ssh_options = options[:ssh]
-        wordpress_path = options[:wordpress_path]
+        wordpress_path = Shellwords.escape(options[:wordpress_path].to_s)
 
         copier = Photocopier::SSH.new(ssh_options).tap { |c| c.logger = logger }
 

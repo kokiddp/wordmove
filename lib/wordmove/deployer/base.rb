@@ -158,22 +158,20 @@ module Wordmove
           "SET FOREIGN_KEY_CHECKS=0"
         ].join('; ')
 
-        sanitize_and_import = <<~SH
-          first_line=$(head -n 1 #{escaped_dump_path} 2>/dev/null || true)
-          tmp_dump="$(mktemp)"
-          if [ "$first_line" = '#{SANDBOX_MAGIC_COMMENT}' ]; then
-            tail -n +2 #{escaped_dump_path} > "$tmp_dump"
-          else
-            cat #{escaped_dump_path} > "$tmp_dump"
-          fi
-          printf "\\nCOMMIT;\\n" >> "$tmp_dump"
-          #{mysql_command} --init-command="#{init_commands}" < "$tmp_dump"
-          import_status=$?
-          rm -f "$tmp_dump"
-          exit $import_status
-        SH
-
-        sanitize_and_import.split("\n").map(&:strip).reject(&:empty?).join("\n")
+        [
+          "first_line=$(head -n 1 #{escaped_dump_path} 2>/dev/null || true)",
+          'tmp_dump="$(mktemp)"',
+          %{if [ "$first_line" = '#{SANDBOX_MAGIC_COMMENT}' ]; then},
+          "tail -n +2 #{escaped_dump_path} > \"$tmp_dump\"",
+          'else',
+          "cat #{escaped_dump_path} > \"$tmp_dump\"",
+          'fi',
+          'printf "\\\\nCOMMIT;\\\\n" >> "$tmp_dump"',
+          "#{mysql_command} --init-command=\"#{init_commands}\" < \"$tmp_dump\"",
+          'import_status=$?',
+          'rm -f "$tmp_dump"',
+          'exit $import_status'
+        ].join("\n")
       end
 
       def compress_command(path)
