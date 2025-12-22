@@ -217,6 +217,7 @@ module Wordmove
       end
 
       def mysql_client_command(options, import: false)
+        mysql_options = options[:mysql_options]
         command = [mysql_client_binary]
         command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
         command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
@@ -226,7 +227,10 @@ module Wordmove
         end
         command << "--database=#{Shellwords.escape(options[:name])}"
         command << "--force" if import
-        command << Shellwords.split(options[:mysql_options]) if options[:mysql_options].present?
+        unless mysql_options.to_s.match?(/--(?:skip-)?binary-mode\b/)
+          command << "--binary-mode" if import
+        end
+        command << Shellwords.split(mysql_options) if mysql_options.present?
         command.join(" ")
       end
 

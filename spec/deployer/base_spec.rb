@@ -123,7 +123,7 @@ describe Wordmove::Deployer::Base do
         "fi",
         "printf \"\\\\nCOMMIT;\\\\n\" >> \"$tmp_dump\"",
         "$(command -v mariadb >/dev/null 2>&1 && echo mariadb || echo mysql) --host=localhost "\
-          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --force --protocol=TCP "\
+          "--port=8888 --user=root --password=\\'\\\"\\$ciao --database=database_name --force --binary-mode --protocol=TCP "\
           "--init-command=\"SET autocommit=0; SET FOREIGN_KEY_CHECKS=0\" < \"$tmp_dump\"",
         "import_status=$?",
         "rm -f \"$tmp_dump\"",
@@ -131,6 +131,22 @@ describe Wordmove::Deployer::Base do
       ].join("\n")
 
       expect(command).to eq(expected)
+    end
+
+    it "does not duplicate binary mode when provided by the user" do
+      command = deployer.send(
+        :mysql_import_command,
+        "./my dump.sql",
+        host: "localhost",
+        port: "8888",
+        user: "root",
+        password: "'\"$ciao",
+        name: "database_name",
+        mysql_options: "--skip-binary-mode --protocol=TCP"
+      )
+
+      expect(command).to include("--skip-binary-mode")
+      expect(command.scan(/binary-mode/).size).to eq(1)
     end
   end
 
