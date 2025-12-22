@@ -197,5 +197,21 @@ describe Wordmove::Deployer::Base do
       expect(content).to include("COLLATE utf8mb4_unicode_ci")
       expect(content).to include("DEFAULT CHARSET=utf8mb4")
     end
+
+    it "leaves lines without collation matches untouched" do
+      dump_file.rewind
+      dump_file.truncate(0)
+
+      binary_line = "INSERT INTO wp_posts VALUES (_binary \"\x00foo\");\n"
+      dump_file.write(binary_line)
+      dump_file.write("CREATE TABLE test (name varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_uca1400_ai_ci) DEFAULT CHARSET=utf8mb3 COLLATE utf8mb3_uca1400_ai_ci;\n")
+      dump_file.rewind
+
+      deployer.send(:normalize_collations!, dump_file.path)
+
+      content = File.binread(dump_file.path)
+      expect(content).to include(binary_line)
+      expect(content).to include("utf8mb4_unicode_ci")
+    end
   end
 end

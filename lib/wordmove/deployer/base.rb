@@ -241,14 +241,19 @@ module Wordmove
         charset_map = charset_fallbacks
         return if mappings.empty? && charset_map.empty?
 
+        collation_matcher = Regexp.union(mappings.keys) unless mappings.empty?
         temp_dump = Tempfile.new(['wordmove-collation', '.sql'])
         begin
           File.open(dump_path, 'rb') do |input|
             File.open(temp_dump.path, 'wb') do |output|
               input.each_line do |line|
+                unless collation_matcher && line.match?(collation_matcher)
+                  output.write(line)
+                  next
+                end
+
                 # Ensure we do not explode on invalid byte sequences coming from dumps
                 safe_line = begin
-                  line.force_encoding(Encoding::UTF_8)
                   line.encode(Encoding::UTF_8, invalid: :replace, undef: :replace, replace: '')
                 rescue StandardError
                   line.dup.force_encoding(Encoding::UTF_8)
