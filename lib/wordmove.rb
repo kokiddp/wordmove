@@ -1,4 +1,5 @@
 require 'English'
+require 'base64'
 require 'logger'
 
 require 'active_support'

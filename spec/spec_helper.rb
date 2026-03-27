@@ -1,7 +1,11 @@
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
 require "tempfile"
-require "pry-byebug"
+begin
+  require "pry-byebug"
+rescue LoadError, StandardError
+  # Optional debugging helper; some pry/byebug combinations lag behind new Rubies.
+end
 require "priscilla"
 
 require "simplecov"

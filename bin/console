@@ -2,9 +2,15 @@
 
 require "bundler/setup"
 require "wordmove"
+require "irb"
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
 
-require "pry"
-Pry.start
+begin
+  require "pry"
+  Pry.start
+rescue LoadError, StandardError
+  warn "Falling back to IRB because pry is unavailable on this Ruby."
+  IRB.start(__FILE__)
+end
