@@ -1,3 +1,5 @@
+require 'shellwords'
+
 module Wordmove
   module SqlAdapter
     class Wpcli
@@ -16,10 +18,9 @@ module Wordmove
         end
 
         opts = [
-          "--path=#{cli_config_path}",
-          # "--path=#{@local_path}",
-          from,
-          to,
+          "--path=#{Shellwords.escape(cli_config_path)}",
+          Shellwords.escape(from.to_s),
+          Shellwords.escape(to.to_s),
           "--quiet",
           "--skip-columns=guid",
           "--all-tables",

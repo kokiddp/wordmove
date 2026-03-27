@@ -18,7 +18,7 @@ describe Wordmove::SqlAdapter::Wpcli do
     allow(adapter).to receive(:wp_in_path?).and_return(true)
     allow(adapter)
       .to receive(:`)
-      .with('wp cli param-dump --with-values')
+      .with('wp cli param-dump --allow-root --with-values')
       .and_return("{}")
   end
 
@@ -55,6 +55,22 @@ describe Wordmove::SqlAdapter::Wpcli do
         expect(adapter.command)
           .to eq("wp search-replace --path=/path/to/ham sausage bacon --quiet "\
                  "--skip-columns=guid --all-tables --allow-root")
+      end
+    end
+
+    context "with values that need shell escaping" do
+      let(:source_config) { { vhost: 'old site.test' } }
+      let(:dest_config) { { vhost: 'new;site.test' } }
+      let(:local_path) { '/path to/ham' }
+
+      it "escapes path and replacement arguments" do
+        allow(adapter).to receive(:`).with('wp cli param-dump --allow-root --with-values').and_return("{}")
+
+        expect(adapter.command).to eq(
+          "wp search-replace --path=#{Shellwords.escape('/path to/ham')} " \
+          "#{Shellwords.escape('old site.test')} #{Shellwords.escape('new;site.test')} " \
+          "--quiet --skip-columns=guid --all-tables --allow-root"
+        )
       end
     end
   end
