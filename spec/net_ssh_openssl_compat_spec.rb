@@ -12,5 +12,16 @@ describe Wordmove::NetSSHOpenSSLCompat do
       expect(key).to be_a(OpenSSL::PKey::EC)
       expect(key.public_key.to_octet_string(:uncompressed)).to eq(public_key_octets)
     end
+
+    it "builds RSA host keys without mutating the pkey" do
+      original = OpenSSL::PKey::RSA.generate(2048)
+      buffer = Net::SSH::Buffer.from(:bignum, original.e, :bignum, original.n)
+
+      key = buffer.read_keyblob("ssh-rsa")
+
+      expect(key).to be_a(OpenSSL::PKey::RSA)
+      expect(key.n).to eq(original.n)
+      expect(key.e).to eq(original.e)
+    end
   end
 end
