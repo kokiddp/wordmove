@@ -226,7 +226,8 @@ describe Wordmove::SqlAdapter::Default do
     it "should write content to file" do
       adapter.sql_content = the_funk
       adapter.write_sql!
-      File.open(sql_path).read == the_funk
+
+      expect(File.read(sql_path)).to eq(the_funk)
     end
   end
 end

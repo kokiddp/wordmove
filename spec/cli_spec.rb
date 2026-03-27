@@ -60,8 +60,17 @@ describe Wordmove::CLI do
 
   context "#pull" do
     context "without a movefile" do
+      let(:options) { { wordpress: true } }
+
+      before do
+        allow(Wordmove::Deployer::Base).to receive(:deployer_for).with(options)
+          .and_raise(Wordmove::MovefileNotFound, "Could not find a valid Movefile.")
+      end
+
       it "it rescues from a MovefileNotFound exception" do
-        expect { cli.invoke(:pull, []) }.to raise_error SystemExit
+        expect do
+          expect { cli.invoke(:pull, [], options) }.to raise_error(SystemExit)
+        end.to output(/Could not find a valid Movefile\./).to_stdout_from_any_process
       end
     end
 
@@ -128,8 +137,17 @@ describe Wordmove::CLI do
 
   context "#push" do
     context "without a movefile" do
+      let(:options) { { wordpress: true } }
+
+      before do
+        allow(Wordmove::Deployer::Base).to receive(:deployer_for).with(options)
+          .and_raise(Wordmove::MovefileNotFound, "Could not find a valid Movefile.")
+      end
+
       it "it rescues from a MovefileNotFound exception" do
-        expect { cli.invoke(:pull, []) }.to raise_error SystemExit
+        expect do
+          expect { cli.invoke(:push, [], options) }.to raise_error(SystemExit)
+        end.to output(/Could not find a valid Movefile\./).to_stdout_from_any_process
       end
     end
 

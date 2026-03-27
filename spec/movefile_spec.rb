@@ -8,23 +8,21 @@ describe Wordmove::Movefile do
   end
 
   context ".load_env" do
-    TMPDIR = "/tmp/wordmove".freeze
-
-    let(:path) { File.join(TMPDIR, 'movefile.yml') }
-    let(:dotenv_path) { File.join(TMPDIR, '.env') }
+    let(:tmpdir) { Dir.mktmpdir("wordmove-load-env") }
+    let(:path) { File.join(tmpdir, 'movefile.yml') }
+    let(:dotenv_path) { File.join(tmpdir, '.env') }
     let(:yaml) { "name: Waldo\njob: Hider" }
     let(:dotenv) { "OBIWAN=KENOBI" }
     let(:movefile) { described_class.new(nil, path) }
 
     before do
-      FileUtils.mkdir(TMPDIR)
-      allow(movefile).to receive(:current_dir).and_return(TMPDIR)
+      allow(movefile).to receive(:current_dir).and_return(tmpdir)
       allow(movefile).to receive(:logger).and_return(double('logger').as_null_object)
       File.open(path, 'w') { |f| f.write(yaml) }
     end
 
     after do
-      FileUtils.rm_rf(TMPDIR)
+      FileUtils.rm_rf(tmpdir)
     end
 
     context "when .env is present" do
@@ -41,20 +39,18 @@ describe Wordmove::Movefile do
   end
 
   context ".fetch" do
-    TMPDIR = "/tmp/wordmove".freeze
-
-    let(:path) { File.join(TMPDIR, 'movefile.yml') }
+    let(:tmpdir) { Dir.mktmpdir("wordmove-fetch") }
+    let(:path) { File.join(tmpdir, 'movefile.yml') }
     let(:yaml) { "name: Waldo\njob: Hider" }
     let(:movefile) { described_class.new(nil, path) }
 
     before do
-      FileUtils.mkdir(TMPDIR)
-      allow(movefile).to receive(:current_dir).and_return(TMPDIR)
+      allow(movefile).to receive(:current_dir).and_return(tmpdir)
       allow(movefile).to receive(:logger).and_return(double('logger').as_null_object)
     end
 
     after do
-      FileUtils.rm_rf(TMPDIR)
+      FileUtils.rm_rf(tmpdir)
     end
 
     context "when Movefile is missing" do
@@ -75,7 +71,7 @@ describe Wordmove::Movefile do
       end
 
       context "when movefile has no extensions" do
-        let(:path) { File.join(TMPDIR, 'movefile') }
+        let(:path) { File.join(tmpdir, 'movefile') }
 
         it 'finds it aswell' do
           result = movefile.fetch
@@ -85,7 +81,7 @@ describe Wordmove::Movefile do
       end
 
       context "when Movefile has no extensions and has first capital" do
-        let(:path) { File.join(TMPDIR, 'Movefile') }
+        let(:path) { File.join(tmpdir, 'Movefile') }
 
         it 'finds it aswell' do
           result = movefile.fetch
@@ -95,7 +91,7 @@ describe Wordmove::Movefile do
       end
 
       context "when movefile.yaml has long extension" do
-        let(:path) { File.join(TMPDIR, 'movefile.yaml') }
+        let(:path) { File.join(tmpdir, 'movefile.yaml') }
 
         it 'finds it aswell' do
           result = movefile.fetch
@@ -106,7 +102,7 @@ describe Wordmove::Movefile do
 
       context "directories traversal" do
         before do
-          @test_dir = File.join(TMPDIR, "test")
+          @test_dir = File.join(tmpdir, "test")
           FileUtils.mkdir(@test_dir)
         end
 
