@@ -32,8 +32,10 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "activesupport", '~> 6.1'
   spec.add_runtime_dependency "base64"
   spec.add_runtime_dependency "bigdecimal"
+  spec.add_runtime_dependency "bcrypt_pbkdf", ">= 1.0", "< 2.0"
   spec.add_runtime_dependency "colorize", "~> 0.8.1"
   spec.add_runtime_dependency "dotenv", "~> 2.7.5"
+  spec.add_runtime_dependency "ed25519", ">= 1.2", "< 2.0"
   spec.add_runtime_dependency "kwalify", "~> 0"
   spec.add_runtime_dependency "mutex_m"
   spec.add_runtime_dependency "photocopier", "~> 1.4", ">= 1.4.0"
