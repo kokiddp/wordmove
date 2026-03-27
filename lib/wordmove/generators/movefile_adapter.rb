@@ -64,7 +64,15 @@ module Wordmove
       end
 
       def wp_definition_regex(definition)
-        /['"]#{definition}['"],\s*["'](?<value>.*)['"]/
+        /
+          ^\s*define\(
+          \s*['"]#{Regexp.escape(definition)}['"]
+          \s*,\s*
+          (?<quote>['"])
+          (?<value>(?:\\.|(?!\k<quote>).)*)
+          \k<quote>
+          \s*\)\s*;?
+        /x
       end
 
       def defaults
