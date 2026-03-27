@@ -73,5 +73,23 @@ describe Wordmove::SqlAdapter::Wpcli do
         )
       end
     end
+
+    context "when adapting wordpress paths with spaces" do
+      let(:config_key) { :wordpress_path }
+      let(:source_config) { { wordpress_path: '/Users/alice/My Site/public' } }
+      let(:dest_config) { { wordpress_path: '/var/www/Remote Site/public' } }
+      let(:local_path) { '/Users/alice/My Site/public' }
+
+      it "escapes both source and destination paths" do
+        allow(adapter).to receive(:`).with('wp cli param-dump --allow-root --with-values').and_return("{}")
+
+        expect(adapter.command).to eq(
+          "wp search-replace --path=#{Shellwords.escape('/Users/alice/My Site/public')} " \
+          "#{Shellwords.escape('/Users/alice/My Site/public')} " \
+          "#{Shellwords.escape('/var/www/Remote Site/public')} " \
+          "--quiet --skip-columns=guid --all-tables --allow-root"
+        )
+      end
+    end
   end
 end

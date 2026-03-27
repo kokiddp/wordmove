@@ -1,10 +1,9 @@
 describe Wordmove::Generators::Movefile do
   let(:movefile) { 'movefile.yml' }
-  let(:tmpdir) { "/tmp/wordmove" }
+  let(:tmpdir) { Dir.mktmpdir("wordmove") }
 
   before do
     @pwd = Dir.pwd
-    FileUtils.mkdir(tmpdir)
     Dir.chdir(tmpdir)
   end
 
@@ -54,6 +53,20 @@ describe Wordmove::Generators::Movefile do
       expect(yaml['global']).to be_present
       expect(yaml['global']['sql_adapter']).to be_present
       expect(yaml['global']['sql_adapter']).to eq('wpcli')
+    end
+  end
+
+  context "::start in a directory with spaces" do
+    let(:tmpdir) { Dir.mktmpdir("wordmove path with spaces ") }
+
+    before do
+      silence_stream(STDOUT) { Wordmove::Generators::Movefile.start }
+    end
+
+    it "quotes the generated wordpress_path so YAML loads it correctly" do
+      yaml = YAML.safe_load(ERB.new(File.read(movefile)).result)
+
+      expect(yaml['local']['wordpress_path']).to eq(Dir.pwd)
     end
   end
 

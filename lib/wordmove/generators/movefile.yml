@@ -3,7 +3,7 @@ global:
 
 local:
   vhost: http://vhost.local
-  wordpress_path: <%= wordpress_path %> # use an absolute path here
+  wordpress_path: "<%= wordpress_path %>" # use an absolute path here
 
   database:
     name: <%= database.name %>
@@ -15,7 +15,7 @@ local:
 
 production:
   vhost: http://example.com
-  wordpress_path: /var/www/your_site # use an absolute path here
+  wordpress_path: "/var/www/your_site" # use an absolute path here
 
   database:
     name: database_name
