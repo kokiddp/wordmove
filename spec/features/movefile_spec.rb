@@ -26,6 +26,11 @@ describe Wordmove::Generators::Movefile do
       expect(yaml['local']['wordpress_path']).to eq(Dir.pwd)
     end
 
+    it 'keeps the default local vhost when no wordpress value can be detected' do
+      yaml = YAML.safe_load(ERB.new(File.read(movefile)).result)
+      expect(yaml['local']['vhost']).to eq('http://vhost.local')
+    end
+
     it 'fills database configuration defaults' do
       yaml = YAML.safe_load(ERB.new(File.read(movefile)).result)
       expect(yaml['local']['database']['name']).to eq('database_name')
@@ -84,6 +89,30 @@ describe Wordmove::Generators::Movefile do
       expect(yaml['local']['database']['user']).to eq('wordmove_user')
       expect(yaml['local']['database']['password']).to eq('wordmove_password')
       expect(yaml['local']['database']['host']).to eq('wordmove_host')
+    end
+  end
+
+  context "local vhost discovery from wp-config" do
+    let(:wp_config_content) do
+      <<~PHP
+        <?php
+        define('WP_HOME', 'https://local.example.test');
+        define('DB_NAME', 'local');
+        define('DB_USER', 'root');
+        define('DB_PASSWORD', 'root');
+        define('DB_HOST', 'localhost');
+      PHP
+    end
+
+    before do
+      File.write("wp-config.php", wp_config_content)
+      silence_stream(STDOUT) { Wordmove::Generators::Movefile.start }
+    end
+
+    it "fills the local vhost from WP_HOME" do
+      yaml = YAML.safe_load(ERB.new(File.read(movefile)).result)
+
+      expect(yaml['local']['vhost']).to eq('https://local.example.test')
     end
   end
 
