@@ -8,8 +8,8 @@ module Wordmove
 
         def adapt_local_db!
           save_local_db(local_dump_path)
-          run wpcli_search_replace(local_options, remote_options, :vhost)
-          run wpcli_search_replace(local_options, remote_options, :wordpress_path)
+          run_wpcli_search_replace(local_options, remote_options, :vhost)
+          run_wpcli_search_replace(local_options, remote_options, :wordpress_path)
           normalize_collations!(local_dump_path)
 
           local_search_replace_dump_path = local_wp_content_dir.path("search_replace_dump.sql")
@@ -37,8 +37,8 @@ module Wordmove
           run uncompress_command(local_gzipped_dump_path)
           normalize_collations!(local_dump_path)
           run mysql_import_command(local_dump_path, local_options[:database])
-          run wpcli_search_replace(remote_options, local_options, :vhost)
-          run wpcli_search_replace(remote_options, local_options, :wordpress_path)
+          run_wpcli_search_replace(remote_options, local_options, :vhost)
+          run_wpcli_search_replace(remote_options, local_options, :wordpress_path)
         end
 
         def after_pull_cleanup!
@@ -51,6 +51,11 @@ module Wordmove
           logger.task_step true, "adapt dump for #{config_key}"
           path = local_options[:wordpress_path]
           SqlAdapter::Wpcli.new(local, remote, config_key, path).command unless simulate?
+        end
+
+        def run_wpcli_search_replace(local, remote, config_key)
+          command = wpcli_search_replace(local, remote, config_key)
+          run(command) if command
         end
       end
     end
