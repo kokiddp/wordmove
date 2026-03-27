@@ -114,14 +114,18 @@ module Wordmove
         one_time_password = SecureRandom.hex(40)
         # generate dump script
         dump_script = generate_dump_script(remote_options[:database], one_time_password)
-        # upload the dump script
-        remote_put(dump_script, remote_dump_script)
-        # download the resulting dump (using the password)
-        dump_url = "#{remote_wp_content_dir.url('dump.php')}?shared_key=#{one_time_password}"
-        download(dump_url, local_dump_path)
-        # cleanup remotely
-        remote_delete(remote_dump_script)
-        remote_delete(remote_wp_content_dir.path("dump.mysql"))
+        begin
+          # upload the dump script
+          remote_put(dump_script, remote_dump_script)
+          # download the resulting dump (using the password)
+          dump_url = "#{remote_wp_content_dir.url('dump.php')}?shared_key=#{one_time_password}"
+          download(dump_url, local_dump_path)
+        ensure
+          cleanup_remote_files(
+            remote_dump_script,
+            remote_wp_content_dir.path("dump.mysql")
+          )
+        end
       end
 
       def import_remote_dump
@@ -131,22 +135,24 @@ module Wordmove
         one_time_password = SecureRandom.hex(40)
         # generate import script
         import_script = generate_import_script(remote_options[:database], one_time_password)
-        # upload import script
-        remote_put(import_script, remote_import_script_path)
-        # run import script
-        import_url = [
-          remote_wp_content_dir.url('import.php').to_s,
-          "?shared_key=#{one_time_password}",
-          "&start=1&foffset=0&totalqueries=0&fn=dump.sql"
-        ].join
-        download(import_url, temp_path)
-        if options[:debug]
-          logger.debug "Operation log located at: #{temp_path}"
-        else
-          local_delete(temp_path)
+        begin
+          # upload import script
+          remote_put(import_script, remote_import_script_path)
+          # run import script
+          import_url = [
+            remote_wp_content_dir.url('import.php').to_s,
+            "?shared_key=#{one_time_password}",
+            "&start=1&foffset=0&totalqueries=0&fn=dump.sql"
+          ].join
+          download(import_url, temp_path)
+          if options[:debug]
+            logger.debug "Operation log located at: #{temp_path}"
+          else
+            local_delete(temp_path)
+          end
+        ensure
+          cleanup_remote_files(remote_import_script_path)
         end
-        # remove script remotely
-        remote_delete(remote_import_script_path)
       end
 
       def adapt_sql(save_to_path, local, remote)
@@ -154,6 +160,14 @@ module Wordmove
 
         logger.task_step true, "Adapt dump"
         SqlAdapter::Default.new(save_to_path, local, remote).adapt! unless simulate?
+      end
+
+      def cleanup_remote_files(*paths)
+        paths.each do |path|
+          remote_delete(path)
+        rescue StandardError => e
+          logger.debug "Cleanup failed for #{path}: #{e.message}"
+        end
       end
     end
   end

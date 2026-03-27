@@ -221,6 +221,26 @@ describe Wordmove::Deployer::Base do
     end
   end
 
+  context "#download" do
+    let(:deployer) { described_class.new(:dummy_env, options) }
+    let(:target) { Tempfile.new(['wordmove-download', '.bin']) }
+    let(:binary_content) { "\xFF\xFEwordmove".b }
+
+    before do
+      allow(URI).to receive(:open).with("https://example.test/dump").and_return(StringIO.new(binary_content))
+    end
+
+    after do
+      target.close!
+    end
+
+    it "writes downloaded content without text-mode corruption" do
+      deployer.send(:download, "https://example.test/dump", target.path)
+
+      expect(File.binread(target.path)).to eq(binary_content)
+    end
+  end
+
   context "#normalize_collations!" do
     let(:deployer) { described_class.new(:dummy_env, options) }
     let(:dump_file) { Tempfile.new(['collation', '.sql']) }

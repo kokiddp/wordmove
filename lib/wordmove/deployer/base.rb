@@ -108,7 +108,7 @@ module Wordmove
 
         return true if simulate?
 
-        File.open(local_path, 'w') do |file|
+        File.open(local_path, 'wb') do |file|
           file << URI.open(url).read
         end
       end
