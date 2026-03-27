@@ -1,6 +1,8 @@
 begin
   require 'net/ssh/transport/openssl'
   require 'net/ssh/buffer'
+  require 'net/ssh/transport/kex/ecdh_sha2_nistp256'
+  require 'net/ssh/transport/kex/diffie_hellman_group1_sha1'
 rescue LoadError
   # net-ssh is a transitive dependency of photocopier and may be unavailable
   # while the gemspec is being evaluated.
@@ -140,6 +142,50 @@ module Wordmove
       end
 
       ::Net::SSH::Buffer.prepend(buffer_compat)
+
+      return unless defined?(::Net::SSH::Transport::Kex::EcdhSHA2NistP256)
+
+      ecdh_compat = Module.new do
+        private
+
+        def generate_key
+          if ::OpenSSL::PKey::EC.respond_to?(:generate)
+            ::OpenSSL::PKey::EC.generate(curve_name)
+          else
+            ::OpenSSL::PKey::EC.new(curve_name).generate_key
+          end
+        end
+      end
+
+      ::Net::SSH::Transport::Kex::EcdhSHA2NistP256.prepend(ecdh_compat)
+
+      return unless defined?(::Net::SSH::Transport::Kex::DiffieHellmanGroup1SHA1)
+
+      dh_compat = Module.new do
+        private
+
+        def generate_key
+          p, g = get_parameters
+
+          asn1 = ::OpenSSL::ASN1::Sequence(
+            [
+              ::OpenSSL::ASN1::Integer(p),
+              ::OpenSSL::ASN1::Integer(g)
+            ]
+          )
+
+          dh_params = ::OpenSSL::PKey::DH.new(asn1.to_der)
+
+          if ::OpenSSL::PKey.respond_to?(:generate_key)
+            ::OpenSSL::PKey.generate_key(dh_params)
+          else
+            dh_params.generate_key!
+            dh_params
+          end
+        end
+      end
+
+      ::Net::SSH::Transport::Kex::DiffieHellmanGroup1SHA1.prepend(dh_compat)
     end
   end
 end

@@ -23,5 +23,19 @@ describe Wordmove::NetSSHOpenSSLCompat do
       expect(key.n).to eq(original.n)
       expect(key.e).to eq(original.e)
     end
+
+    it "builds ECDH key exchange keys without mutating the pkey" do
+      key = Net::SSH::Transport::Kex::EcdhSHA2NistP256.allocate.send(:generate_key)
+
+      expect(key).to be_a(OpenSSL::PKey::EC)
+      expect(key.public_key).not_to be_nil
+    end
+
+    it "builds DH key exchange keys without mutating the pkey" do
+      key = Net::SSH::Transport::Kex::DiffieHellmanGroup1SHA1.allocate.send(:generate_key)
+
+      expect(key).to be_a(OpenSSL::PKey::DH)
+      expect(key.pub_key).not_to be_nil
+    end
   end
 end
