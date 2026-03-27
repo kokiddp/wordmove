@@ -64,6 +64,29 @@ describe Wordmove::CLI do
         expect { cli.invoke(:pull, []) }.to raise_error SystemExit
       end
     end
+
+    context "with an invalid movefile" do
+      let(:options) { { wordpress: true } }
+
+      before do
+        allow(Wordmove::Deployer::Base).to receive(:deployer_for).with(options).and_raise(
+          Psych::SyntaxError.new(
+            nil,
+            1,
+            1,
+            0,
+            "found character that cannot start any token",
+            nil
+          )
+        )
+      end
+
+      it "rescues from a syntax error" do
+        expect do
+          expect { cli.invoke(:pull, [], options) }.to raise_error(SystemExit)
+        end.to output(/Your movefile is not parsable due to a syntax error/).to_stdout_from_any_process
+      end
+    end
   end
 
   context "#list" do
@@ -107,6 +130,29 @@ describe Wordmove::CLI do
     context "without a movefile" do
       it "it rescues from a MovefileNotFound exception" do
         expect { cli.invoke(:pull, []) }.to raise_error SystemExit
+      end
+    end
+
+    context "with an invalid movefile" do
+      let(:options) { { wordpress: true } }
+
+      before do
+        allow(Wordmove::Deployer::Base).to receive(:deployer_for).with(options).and_raise(
+          Psych::SyntaxError.new(
+            nil,
+            1,
+            1,
+            0,
+            "found character that cannot start any token",
+            nil
+          )
+        )
+      end
+
+      it "rescues from a syntax error" do
+        expect do
+          expect { cli.invoke(:push, [], options) }.to raise_error(SystemExit)
+        end.to output(/Your movefile is not parsable due to a syntax error/).to_stdout_from_any_process
       end
     end
   end

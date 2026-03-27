@@ -88,6 +88,9 @@ module Wordmove
       rescue MovefileNotFound => e
         logger.error(e.message)
         exit 1
+      rescue Psych::SyntaxError => e
+        logger.error("Your movefile is not parsable due to a syntax error: #{e.message}")
+        exit 1
       end
 
       Wordmove::Hook.run(:pull, :before, options)
@@ -111,6 +114,9 @@ module Wordmove
         deployer = Wordmove::Deployer::Base.deployer_for(options.deep_symbolize_keys)
       rescue MovefileNotFound => e
         logger.error(e.message)
+        exit 1
+      rescue Psych::SyntaxError => e
+        logger.error("Your movefile is not parsable due to a syntax error: #{e.message}")
         exit 1
       end
 
