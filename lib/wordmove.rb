@@ -1,6 +1,13 @@
 require 'English'
 require 'base64'
 require 'logger'
+require 'strscan'
+
+unless StringScanner.method_defined?(:peep)
+  class StringScanner
+    alias peep peek
+  end
+end
 
 require 'active_support'
 require 'active_support/core_ext'

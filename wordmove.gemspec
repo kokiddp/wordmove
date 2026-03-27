@@ -31,20 +31,22 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency "activesupport", '~> 6.1'
   spec.add_runtime_dependency "base64", "~> 0.1"
+  spec.add_runtime_dependency "benchmark", ">= 0.4", "< 1"
   spec.add_runtime_dependency "bigdecimal", "~> 4.0"
   spec.add_runtime_dependency "bcrypt_pbkdf", ">= 1.0", "< 2.0"
   spec.add_runtime_dependency "colorize", "~> 0.8.1"
   spec.add_runtime_dependency "dotenv", "~> 2.7.5"
   spec.add_runtime_dependency "ed25519", ">= 1.2", "< 2.0"
   spec.add_runtime_dependency "kwalify", "~> 0"
+  spec.add_runtime_dependency "logger", ">= 1.6", "< 2"
   spec.add_runtime_dependency "mutex_m", "~> 0.1"
+  spec.add_runtime_dependency "ostruct", "~> 0.6"
   spec.add_runtime_dependency "photocopier", "~> 1.4", ">= 1.4.0"
   spec.add_runtime_dependency "thor", "~> 1.4"
 
   spec.required_ruby_version = ">= 2.6.0"
 
   spec.add_development_dependency "bundler", ">= 2.0", "< 5"
-  spec.add_development_dependency "ostruct", "~> 0.6"
   spec.add_development_dependency "priscilla", "~> 1.0"
   spec.add_development_dependency "pry-byebug", "~> 3.1"
   spec.add_development_dependency "rake", "~> 13.0.1"
