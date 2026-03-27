@@ -79,13 +79,18 @@ module Wordmove
       end
 
       def mysql_command(database: nil)
+        mysql_options = config[:mysql_options]
         command = [mysql_client_binary]
         command << "--host=#{Shellwords.escape(config[:host])}" if config[:host].present?
         command << "--port=#{Shellwords.escape(config[:port])}" if config[:port].present?
+        if (socket = mysql_socket_option)
+          command << "--socket=#{Shellwords.escape(socket)}"
+        end
         command << "--user=#{Shellwords.escape(config[:user])}" if config[:user].present?
         if config[:password].present?
           command << "--password=#{Shellwords.escape(config[:password])}"
         end
+        command << Shellwords.split(mysql_options) if mysql_options.present?
         command << database if database.present?
         command << "-e'QUIT'"
         command.join(" ")
@@ -101,6 +106,30 @@ module Wordmove
 
       def mysqldump_in_path?
         system("which mysqldump", out: File::NULL) || system("which mariadb-dump", out: File::NULL)
+      end
+
+      def mysql_socket_option
+        return if mysql_option_includes_socket?(config[:mysql_options])
+
+        config[:socket].presence || mysql_socket_from_options(config[:mysqldump_options])
+      end
+
+      def mysql_option_includes_socket?(option_string)
+        mysql_socket_from_options(option_string).present?
+      end
+
+      def mysql_socket_from_options(option_string)
+        return if option_string.to_s.empty?
+
+        args = Shellwords.split(option_string)
+        socket_index = args.index('--socket')
+        return args[socket_index + 1] if socket_index && args[socket_index + 1]
+
+        args.each do |arg|
+          return Regexp.last_match(1) if arg.match(/\A--socket=(.+)\z/)
+        end
+
+        nil
       end
     end
   end

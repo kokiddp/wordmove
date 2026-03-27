@@ -25,6 +25,10 @@ mapping:
       host:
         type: str
         required: true
+      socket:
+        type: str
+      mysql_options:
+        type: str
       mysqldump_options:
         type: str
       port:

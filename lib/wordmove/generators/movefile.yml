@@ -10,6 +10,8 @@ local:
     user: <%= database.user %>
     password: "<%= database.password %>" # could be blank, so always use quotes around
     host: <%= database.host %>
+    # port: 3306
+    # socket: /path/to/mysql.sock # optional unix socket path
 
 production:
   vhost: http://example.com
@@ -21,6 +23,7 @@ production:
     password: password
     host: host
     # port: 3308 # Use just in case you have exotic server config
+    # socket: /path/to/mysql.sock # Useful for local tunnels or unix socket setups
     # mysqldump_options: '--max_allowed_packet=1G' # Only available if using SSH
     # mysql_options: '--protocol=TCP' # mysql command is used to import db
 

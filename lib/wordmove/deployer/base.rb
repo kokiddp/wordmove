@@ -137,6 +137,9 @@ module Wordmove
         command = [mysql_dump_binary]
         command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
         command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
+        if (socket = mysql_socket_option(options, :mysqldump_options))
+          command << "--socket=#{Shellwords.escape(socket)}"
+        end
         command << "--user=#{Shellwords.escape(options[:user])}" if options[:user].present?
         if options[:password].present?
           command << "--password=#{Shellwords.escape(options[:password])}"
@@ -221,6 +224,9 @@ module Wordmove
         command = [mysql_client_binary]
         command << "--host=#{Shellwords.escape(options[:host])}" if options[:host].present?
         command << "--port=#{Shellwords.escape(options[:port])}" if options[:port].present?
+        if (socket = mysql_socket_option(options, :mysql_options))
+          command << "--socket=#{Shellwords.escape(socket)}"
+        end
         command << "--user=#{Shellwords.escape(options[:user])}" if options[:user].present?
         if options[:password].present?
           command << "--password=#{Shellwords.escape(options[:password])}"
@@ -330,6 +336,30 @@ module Wordmove
         return replacement if replacement.is_a?(Hash)
 
         { collation: replacement, charset: nil }
+      end
+
+      def mysql_socket_option(options, legacy_options_key)
+        return if mysql_option_includes_socket?(options[legacy_options_key])
+
+        options[:socket].presence
+      end
+
+      def mysql_option_includes_socket?(option_string)
+        mysql_socket_from_options(option_string).present?
+      end
+
+      def mysql_socket_from_options(option_string)
+        return if option_string.blank?
+
+        args = Shellwords.split(option_string)
+        socket_index = args.index('--socket')
+        return args[socket_index + 1] if socket_index && args[socket_index + 1]
+
+        args.each do |arg|
+          return Regexp.last_match(1) if arg.match(/\A--socket=(.+)\z/)
+        end
+
+        nil
       end
     end
   end

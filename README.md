@@ -1,113 +1,106 @@
 # Wordmove
 
-This is a customized solution that resolves wp-command errors occurring during database synchronization inside a Docker container, and also skips the newly added “Sandbox Mode” line that appears at the beginning of dump files when using certain versions of MariaDB. It also prefers MariaDB client binaries (`mariadb`/`mariadb-dump`) when available, avoiding the deprecation warning for the legacy `mysql` client on newer MariaDB releases.
+![logo](https://raw.githubusercontent.com/welaika/wordmove/master/assets/images/wordmove.png)
 
-It can also patch unsupported collations on the fly while importing dumps. You can override the defaults by adding a mapping in your `movefile.yml`:
+This fork keeps Wordmove usable on current Ruby, OpenSSL, MariaDB, and Docker-based WordPress setups while preserving the original workflow and Movefile format.
 
-```yml
-global:
-  collation_fallbacks:
-    utf8mb3_uca1400_ai_ci: utf8mb4_unicode_ci
-    utf8mb3_uca1400_as_cs: utf8mb4_unicode_ci
-  # Optionally force charset upgrades alongside collations
-  charset_fallbacks:
-    utf8mb3: utf8mb4
-```
+[![Tests](https://github.com/kokiddp/wordmove/actions/workflows/ruby.yml/badge.svg)](https://github.com/kokiddp/wordmove/actions/workflows/ruby.yml)
 
-```
-/*!999999\- enable the sandbox mode */
-```
+## What This Fork Changes
 
-Since it has not yet been published as a gem, we are using specific_install.
+- Runs on modern Ruby versions, including Ruby 3.4 and the current Ruby 4.0 CI line.
+- Fixes `net-ssh` and OpenSSL 3 incompatibilities that break SSH connections on newer Rubies.
+- Prefers `mariadb` and `mariadb-dump` when available, while still falling back to `mysql` and `mysqldump`.
+- Handles MariaDB dump "sandbox mode" headers during import.
+- Normalizes unsupported collations and charset declarations in SQL dumps before import.
+- Uses `wp-cli` in a Docker-friendly way with `--allow-root`.
+- Prints concise command summaries instead of dumping long multi-line shell wrappers to the console.
 
-```
+## Changelog Since `bc9bce6`
+
+- Ruby compatibility:
+  - The repo default Ruby is now `3.4.9`.
+  - The GitHub Actions matrix now tests `2.6`, `2.7`, `3.0`, `3.1`, `3.2`, `3.3`, `3.4`, and `4.0`.
+  - Runtime dependencies were updated for modern Ruby packaging and stdlib extraction: `thor`, `base64`, `bigdecimal`, `mutex_m`, `ed25519`, and `bcrypt_pbkdf`.
+  - `Movefile` YAML loading now works across older and newer Psych versions.
+  - `bin/console` now falls back to `irb` when `pry` is unavailable on newer Rubies.
+
+- SSH and OpenSSL 3:
+  - Added a compatibility layer for `net-ssh 6.1` on OpenSSL 3.
+  - Fixes cover EC, RSA, and DSA host key parsing plus ECDH and DH key generation.
+  - This removes the common Ruby 3.4/OpenSSL 3 crashes seen during SSH deploys and DB sync.
+
+- Database sync behavior:
+  - Dump commands now auto-detect `mariadb-dump` or `mysqldump`.
+  - Import commands now auto-detect `mariadb` or `mysql`.
+  - Movefiles can now express unix socket connections with `database.socket`.
+  - Legacy `--socket` usage inside `mysql_options` and `mysqldump_options` is still supported.
+  - Imports strip the MariaDB sandbox header when present, append a trailing `COMMIT;`, enable `--binary-mode`, disable foreign key checks, and preserve exit status correctly.
+  - Existing `mysql_options` are respected without duplicating `--binary-mode`.
+
+- SQL dump normalization:
+  - Added built-in collation fallbacks for newer `utf8mb3` collations that older targets may not understand.
+  - Added built-in charset fallback from `utf8mb3` to `utf8mb4`.
+  - These mappings can be overridden in `movefile.yml`.
+
+- WP-CLI and hooks:
+  - `wp cli param-dump` now uses `--allow-root`, which avoids failures in root-owned Docker or containerized environments.
+  - Hook working directories are now shell-escaped more safely.
+
+- Logging and developer experience:
+  - Long generated shell scripts are summarized as meaningful actions such as SQL dump, import, compression, and `wp search-replace`.
+  - New specs cover logger summaries and the OpenSSL/SSH compatibility layer.
+
+## Installation
+
+This fork is typically installed directly from GitHub:
+
+```bash
 gem install specific_install
 gem specific_install https://github.com/kokiddp/wordmove.git
 ```
 
-For everything else, please refer to the original documentation.
+For development from a checkout:
 
-# Wordmove
-
-![logo](https://raw.githubusercontent.com/welaika/wordmove/master/assets/images/wordmove.png)
-
-Wordmove is a command line tool that lets you automatically mirror local WordPress
-installations and DB data back and forth from your local development machine to
-one or more remote servers.
-
-Wordmove has also a neat [hook](https://github.com/welaika/wordmove/wiki/Hooks) system which enables you to run arbitrary commands
-before and after push/pull actions. Local and remote commands are both supported (remote
-ones only on SSH protocol).
-
-[FTP support development has been discontinued](https://github.com/welaika/wordmove/wiki/FTP-support-disclaimer), thus not all features are granted when using this protocol.
-
-[![Tests](https://github.com/welaika/wordmove/workflows/Tests/badge.svg)](https://github.com/welaika/wordmove/actions)
-[![Slack channel](https://img.shields.io/badge/Slack-WP--Hub-blue.svg)](https://wphub-auto-invitation.herokuapp.com/)
-[![Gem Version](https://badge.fury.io/rb/wordmove.svg)](https://rubygems.org/gems/wordmove)
-[![Docker Build Status](https://img.shields.io/docker/automated/welaika/wordmove.svg)](https://hub.docker.com/r/welaika/wordmove/)
-
-
-## Installation
-
-Wordmove is developed in ruby and packaged and distributed as a gem.
-
-To install:
-
-    gem install wordmove
-
-And to update:
-
-    gem update wordmove
-
-You can read more about ruby gems ecosystem on the official site https://rubygems.org/.
-
-## Peer dependencies
-
-Wordmove acts as automation glue between tools you already have and love. These are its peer dependencies which **you need to have installed** and executable through your system $PATH:
-
-| Program   | Mandatory?                       |
-| --------- | -------------------------------- |
-| rsync     | Yes for SSH protocol             |
-| mysql     | Yes                              |
-| mysqldump | Yes                              |
-| wp-cli    | Yes by default, but configurable |
-| lftp      | Yes, for FTP protocol            |
-
-Wordmove also expect that the remote server will have the following commands: `gzip`, `nice`, `mysql`, `rsync`. All of these should be always present by default on any WordPress hosting.
-
-## Usage
-
-```
-> wordmove help
-Commands:
-  wordmove --version, -v    # Print the version
-  wordmove doctor           # Do some local configuration and environment checks
-  wordmove help [TASK]      # Describe available tasks or one specific task
-  wordmove init             # Generates a brand new movefile.yml
-  wordmove list             # List all environments and vhosts
-  wordmove pull             # Pulls WP data from remote host to the local machine
-  wordmove push             # Pushes WP data from local machine to remote host
+```bash
+bundle install
+bundle exec exe/wordmove --help
 ```
 
-Move inside the WordPress folder and use `wordmove init` to generate a new `movefile.yml` and edit it with your settings. Read the next paragraph for more info.
+## Supported Ruby Versions
 
-**See the wiki article: [Usage and flags explained](https://github.com/welaika/wordmove/wiki/Usage-and-flags-explained) for more info.**
+- Local default in this repository: `3.4.9`
+- CI coverage: `2.6`, `2.7`, `3.0`, `3.1`, `3.2`, `3.3`, `3.4`, `4.0`
+- Minimum declared Ruby version in the gemspec: `2.6.0`
 
+## Peer Dependencies
 
+Wordmove is orchestration glue. These tools still need to exist in your environment and be available in `$PATH`.
 
-### Multistage
+| Program | Mandatory? | Notes |
+| --- | --- | --- |
+| `rsync` | Yes for SSH protocol | Used for file sync |
+| `mysql` or `mariadb` | Yes | Used for DB import and checks |
+| `mysqldump` or `mariadb-dump` | Yes | Used for DB export |
+| `wp` | Yes by default | Required by the default `wpcli` SQL adapter |
+| `lftp` | Yes for FTP/SFTP | Only needed for FTP/SFTP setups |
 
-You can define multiple remote environments in your `movefile.yml`, such as production, staging, etc. Every first level key in the YAML other than the defaults and mandatory `global` and `local` will be interpreted as a remote environment.
+Remote hosts are also expected to provide `gzip`, `nice`, `rsync`, and either `mysql`/`mariadb` plus `mysqldump`/`mariadb-dump` when database sync happens over SSH.
 
-Use `-e` with `pull` or `push` to run the command on the specified environment.
+## Quick Start
 
-For example: `wordmove push -e staging -d` will push your local database to the staging environment.
+```bash
+wordmove init
+wordmove doctor
+wordmove pull -e staging -d
+wordmove push -e production --all
+```
 
-We warmly **recommend to read the wiki article**: [Multiple environments explained](https://github.com/welaika/wordmove/wiki/Multiple-environments-explained)
+Run `wordmove help` to see all commands and flags.
 
-## movefile.yml
+## `movefile.yml`
 
-You can configure Wordmove creating a `movefile.yml`. That's a YAML file with local and remote host(s) infos:
+Basic example:
 
 ```yaml
 global:
@@ -115,7 +108,7 @@ global:
 
 local:
   vhost: http://vhost.local
-  wordpress_path: /home/john/sites/your_site # use an absolute path here
+  wordpress_path: /home/john/sites/your_site
 
   database:
     name: database_name
@@ -123,108 +116,46 @@ local:
     password: password
     host: localhost
 
-  # paths: # you can customize wordpress internal paths
-  #   wp_content: wp-content
-  #   uploads: wp-content/uploads
-  #   plugins: wp-content/plugins
-  #   themes: wp-content/themes
-  #   languages: wp-content/languages
-
 production:
-  vhost: http://example.com
-  wordpress_path: /var/www/your_site # use an absolute path here
+  vhost: https://example.com
+  wordpress_path: /var/www/your_site
 
   database:
     name: database_name
     user: user
     password: password
     host: host
-    # port: 3308 # Use just in case you have exotic server config
-    # mysqldump_options: --max_allowed_packet=50MB # Only available if using SSH
-    # mysql_options: --protocol=TCP # Only available if using SSH
+    # port: 3308
+    # socket: /path/to/mysql.sock
+    # mysqldump_options: --max_allowed_packet=50MB
+    # mysql_options: --protocol=TCP
 
   exclude:
-    - '.git/'
-    - '.gitignore'
-    - 'node_modules/'
-    - 'bin/'
-    - 'tmp/*'
-    - 'Gemfile*'
-    - 'Movefile'
-    - 'movefile'
-    - 'movefile.yml'
-    - 'movefile.yaml'
-    - 'wp-config.php'
-    - 'wp-content/*.sql.gz'
-    - '*.orig'
+    - ".git/"
+    - ".gitignore"
+    - "node_modules/"
+    - "bin/"
+    - "tmp/*"
+    - "Gemfile*"
+    - "Movefile"
+    - "movefile"
+    - "movefile.yml"
+    - "movefile.yaml"
+    - "wp-config.php"
+    - "wp-content/*.sql.gz"
+    - "*.orig"
 
   ssh:
     host: host
     user: user
-
-#  hooks: # Remote hooks won't work with FTP
-#    push:
-#      before:
-#        - command: 'echo "do something"'
-#          where: local
-#          raise: false # raise is true by default
-#      after:
-#        - command: 'echo "do something"'
-#          where: remote
-#    pull:
-#      before:
-#        - command: 'echo "do something"'
-#          where: local
-#          raise: false
-#      after:
-#        - command: 'echo "do something"'
-#          where: remote
 ```
 
-We warmly **recommend to read the wiki articles**
-
-* [Multiple environments explained](https://github.com/welaika/wordmove/wiki/Multiple-environments-explained)
-* [Movefile configurations explained](https://github.com/welaika/wordmove/wiki/movefile.yml-configurations-explained)
-
-to understand more about  supported configurations.
+Multi-environment Movefiles are still supported. Any first-level key other than `global` and `local` is treated as a remote environment. Use `-e staging`, `-e production`, and so on.
 
 ## Environment Variables
 
-Wordmove allows the use of environment variables in your movefiles.
-This is useful in order to protect sensitive variables and credentials, as well as make it easy to share movefiles between your team.
+Movefiles support ERB, so secrets can be loaded from the shell or from `.env` files.
 
-Environment variables are written using the **ERB tags** syntax:
-```
-"<%= ENV['YOUR_SECRET_NAME'] %>"
-```
-
-### Variables set up
-
-Environment variables can be set up using two methods:
-
-#### Using the shell:
-```bash
-# bash
-export PROD_DB_USER="username" PROD_DB_PASS="password"
-
-# fish
-set --export --global PROD_DB_USER "username"; set --export --global PROD_DB_PASS "password"
-```
-#### Using a `.env` file:
-
-Wordmove supports the [dotenv](https://github.com/bkeepers/dotenv) module.
-
-Simply create a `.env` file next to your movefile structured as follows:
-```bash
-PROD_DB_USER="username"
-PROD_DB_PASS="password"
-```
-Wordmove will take care of loading the file  and making the environment variables ready to be used in your configuration file.
-
-You may also use `.env.{environmentname}`, but this is discouraged.
-
-### Use them in your `movefile.yml`
-Using the ERB syntax described above, write your movefile as follows:
 ```yaml
 production:
   database:
@@ -232,88 +163,157 @@ production:
     password: "<%= ENV['PROD_DB_PASS'] %>"
 ```
 
-### System variables
-You can use system variables to configure your movefile.
+You can populate those variables either in the shell:
 
-For example:
-```yaml
-local:
-  vhost: "http://wordpress-site.localhost"
-  wordpress_path: "<%= ENV['HOME'] %>/[wordpress directory path]/"
-  # wordpress_path will be substituted with /home/user_name/[wordpress directory path]
+```bash
+export PROD_DB_USER="username"
+export PROD_DB_PASS="password"
 ```
 
-## Supports
+or in a `.env` file next to the Movefile:
 
-### OS
+```bash
+PROD_DB_USER="username"
+PROD_DB_PASS="password"
+```
 
-OS X and Linux are fully supported.
+## SQL Import and Dump Compatibility
 
-See the [Windows (un)support disclaimer](https://github.com/welaika/wordmove/wiki/Windows-(un)support-disclaimer)
+This fork changes DB import/export behavior in a few important ways:
 
-### Docker
+- MariaDB client binaries are preferred automatically when present.
+- You can now configure unix socket connections directly as `database.socket: /path/to/mysqld.sock`.
+- The older `--socket ...` form inside `database.mysql_options` or `database.mysqldump_options` still works and remains backward-compatible.
+- Dumps beginning with:
 
-We have a docker image bringing the latest Wordmove's version with autobuild on new releases.
+```sql
+/*!999999- enable the sandbox mode */
+```
 
-[![Docker Build Status](https://img.shields.io/docker/automated/welaika/wordmove.svg)](https://hub.docker.com/r/welaika/wordmove/)
+  are imported correctly by stripping that header before the actual import.
+- Imports append a final `COMMIT;` to reduce partial transaction edge cases.
+- Imports enable `SET FOREIGN_KEY_CHECKS=0` and `--binary-mode` unless you already configured binary mode explicitly.
 
-### SSH
+These changes are especially useful when moving databases between Local, Docker, MariaDB 11+, and older shared-hosting MySQL servers.
 
-* You need `rsync` on your machine; as far as we know it's already installed on OS X and Linux.
-* To use your SSH public key for authentication, just delete the `production.ssh.password` field in your `movefile.yml`. Easy peasy.
-* writing the password inside `movefile.yml` was and is somewhat supported, but **we discourage this practice** in favor of password-less authentication with pub key. Read [here](https://github.com/welaika/wordmove/wiki/%5Bdeprecated%5D-SSH-password-inside-Movefile) for old informations.
+Example:
 
-### FTP and SFTP
+```yaml
+local:
+  database:
+    name: local
+    user: root
+    password: root
+    host: localhost
+    socket: /home/koki/.config/Local/run/eZGRlahhA/mysql/mysqld.sock
+```
 
-* You need to install `lftp` on your machine. See community wiki article: [Install lftp on OSX yosemite](https://github.com/welaika/wordmove/wiki/Install-lftp-on-OSX-yosemite)).
-* Use the relative FTP path as `production.wordpress_path`
-* Use the absolute FTP path as `production.wordpress_absolute_path` (you may need to recover this from the `__FILE__` [magic constant](http://php.net/manual/en/language.constants.predefined.php)
-* if you want to specify a passive FTP connection add to the YAML config a `production.ftp.passive` flag and set it to `true`.
+When `wordmove init` reads a `wp-config.php` entry like:
 
-FTP support development is [discontinued](https://github.com/welaika/wordmove/wiki/FTP-support-disclaimer), but it's always there.
+```php
+define('DB_HOST', 'localhost:/home/koki/.config/Local/run/eZGRlahhA/mysql/mysqld.sock');
+```
 
-Sice version 3.2.0 SFTP is fully supported, with same functionalities as FTP, through `production.ftp.scheme`
-configuration. More information found in the wiki.
+it now generates separate `host` and `socket` fields in the Movefile instead of leaving the combined value inside `host`.
 
-## Notes
+Likewise, when `DB_HOST` contains a custom port such as:
+
+```php
+define('DB_HOST', 'localhost:3307');
+```
+
+`wordmove init` now generates separate `host` and `port` fields and uncomments the local `port` line in the generated Movefile.
+
+## Collation Fallbacks
+
+If your source dump contains collations unsupported by the destination server, Wordmove can rewrite them before import.
+
+Default behavior already normalizes newer `utf8mb3` collations such as:
+
+- `utf8mb3_uca1400_ai_ci`
+- `utf8mb3_uca1400_as_cs`
+- `utf8mb3_unicode_520_ci`
+
+to `utf8mb4_unicode_ci`, and upgrades `utf8mb3` to `utf8mb4`.
+
+You can override the defaults in `movefile.yml`:
+
+```yaml
+global:
+  collation_fallbacks:
+    utf8mb3_uca1400_ai_ci: utf8mb4_unicode_ci
+    utf8mb3_uca1400_as_cs: utf8mb4_unicode_ci
+
+  charset_fallbacks:
+    utf8mb3: utf8mb4
+```
+
+## Docker and Root-Owned WordPress Installs
+
+The default `wpcli` adapter now calls `wp cli param-dump --allow-root --with-values`, which makes path discovery and search-replace flows work better in containerized environments where `wp` runs as `root`.
+
+## Logging
+
+Long generated shell wrappers are summarized into shorter, more useful task lines. For example, instead of printing the full multi-line SQL import script, Wordmove now logs intent-oriented summaries such as:
+
+- `dump database my_db to ./wp-content/dump.sql`
+- `compress ./wp-content/dump.sql`
+- `wp search-replace old.example.test -> new.example.test in ./public`
+- `import SQL dump ./wp-content/dump.sql into database local (strip sandbox header, append COMMIT)`
+
+This keeps normal output readable without hiding what Wordmove is actually doing.
+
+## Usage Notes
 
 ### Mirroring
 
-Push and pull actions on files will perform a **mirror** operation. Please, keep
-in mind that to mirror means to transfer new/updated files **and remove files**
-from destination if not present in source.
+File push and pull operations mirror the source. Files missing from the source can be deleted on the destination. Exclude anything you need to preserve.
 
-This means that if you have files/directories on your remotes which you must
-preserve, you **must exclude those in your movefile.yml**, or they will be
-deleted.
+### SSH
 
-### How the heck you are able to sync the DB via FTP?
+- `rsync` must be installed locally.
+- SSH public key authentication is still the recommended setup.
+- Passwords inside `movefile.yml` may still work, but key-based auth is strongly preferred.
 
-We're glad you asked! We basically upload via FTP a PHP script that performs the various
-import/export operations. This script then gets executed via HTTP. Don't worry
-too much about security though: the script is deleted just after the usage,
-and can only be executed by `wordmove`, as each time it requires a pre-shared
-one-time-password to be run.
+### FTP and SFTP
 
-### Yanked versions
+- `lftp` is required locally.
+- Use the relative FTP path as `production.wordpress_path`.
+- Use `production.wordpress_absolute_path` when the server layout requires it.
+- FTP support remains available, but upstream development for FTP has long been discontinued.
 
-Wordmove `1.3.1` has been removed from `rubygems` due to a bug with FTP deploying system. If you are
-using this version, please update soon (`gem update wordmove`).
+## Upstream Documentation
 
-## Need more tools?
-Visit [Wordpress Tools](https://www.wptools.it).
+Most of the original Wordmove workflow and Movefile format still match the upstream documentation:
+
+- [Usage and flags explained](https://github.com/welaika/wordmove/wiki/Usage-and-flags-explained)
+- [Multiple environments explained](https://github.com/welaika/wordmove/wiki/Multiple-environments-explained)
+- [Movefile configuration explained](https://github.com/welaika/wordmove/wiki/movefile.yml-configurations-explained)
+- [Hooks](https://github.com/welaika/wordmove/wiki/Hooks)
+
+Where this README and the upstream wiki disagree, this README describes the behavior of this fork.
+
+## Contributing
+
+```bash
+bundle exec rspec
+```
+
+The project CI currently runs the suite across:
+
+- `2.6`
+- `2.7`
+- `3.0`
+- `3.1`
+- `3.2`
+- `3.3`
+- `3.4`
+- `4.0`
+
+Please keep the README updated when changing user-facing behavior, installation steps, supported versions, or command output.
 
 ## Credits
 
-* The dump script is the [`MYSQL-dump` PHP package](https://github.com/dg/MySQL-dump) by David Grudl
-* The import script used is the [BigDump](http://www.ozerov.de/bigdump/) library
-
-## Contribute
-
-Please, read the [contributor guide](https://github.com/welaika/wordmove/blob/master/CONTRIBUTING.md).
-
-Feel free to open a discussion issue about contribution if you need more info.
-
-## Author
-
-made with ❤️ and ☕️ by [weLaika](https://dev.welaika.com)
+- The dump script is based on the [`MYSQL-dump` PHP package](https://github.com/dg/MySQL-dump) by David Grudl.
+- The import script uses the [BigDump](http://www.ozerov.de/bigdump/) library.
+- Original project by [weLaika](https://dev.welaika.com).

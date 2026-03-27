@@ -34,4 +34,46 @@ describe Wordmove::Doctor::Mysql do
       silence_stream(STDOUT) { doctor.check! }
     end
   end
+
+  context "socket-aware connection commands" do
+    it "uses the dedicated socket option in doctor checks" do
+      allow(doctor).to receive(:config).and_return(
+        host: "localhost",
+        user: "root",
+        password: "root",
+        socket: "/tmp/mysql.sock"
+      )
+
+      command = doctor.send(:mysql_command)
+
+      expect(command).to include("--socket=/tmp/mysql.sock")
+    end
+
+    it "keeps supporting socket passed through mysql_options" do
+      allow(doctor).to receive(:config).and_return(
+        host: "localhost",
+        user: "root",
+        password: "root",
+        mysql_options: "--socket /tmp/mysql.sock --protocol=TCP"
+      )
+
+      command = doctor.send(:mysql_command)
+
+      expect(command).to include("--socket /tmp/mysql.sock")
+      expect(command.scan(/--socket(?:=|\s+)/).size).to eq(1)
+    end
+
+    it "falls back to socket found in mysqldump_options" do
+      allow(doctor).to receive(:config).and_return(
+        host: "localhost",
+        user: "root",
+        password: "root",
+        mysqldump_options: "--socket=/tmp/mysql.sock"
+      )
+
+      command = doctor.send(:mysql_command)
+
+      expect(command).to include("--socket=/tmp/mysql.sock")
+    end
+  end
 end

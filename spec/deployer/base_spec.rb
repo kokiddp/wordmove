@@ -97,6 +97,22 @@ describe Wordmove::Deployer::Base do
         ].join(' ')
       )
     end
+
+    it "adds socket from the dedicated socket option" do
+      command = deployer.send(
+        :mysql_dump_command,
+        {
+          host: "localhost",
+          user: "root",
+          password: "secret",
+          name: "database_name",
+          socket: "/tmp/mysql.sock"
+        },
+        "./mysql dump.sql"
+      )
+
+      expect(command).to include("--socket=/tmp/mysql.sock")
+    end
   end
 
   context "#mysql_import_command" do
@@ -147,6 +163,35 @@ describe Wordmove::Deployer::Base do
 
       expect(command).to include("--skip-binary-mode")
       expect(command.scan(/binary-mode/).size).to eq(1)
+    end
+
+    it "adds socket from the dedicated socket option" do
+      command = deployer.send(
+        :mysql_import_command,
+        "./my dump.sql",
+        host: "localhost",
+        user: "root",
+        password: "secret",
+        name: "database_name",
+        socket: "/tmp/mysql.sock"
+      )
+
+      expect(command).to include("--socket=/tmp/mysql.sock")
+    end
+
+    it "does not duplicate socket when already provided in mysql_options" do
+      command = deployer.send(
+        :mysql_import_command,
+        "./my dump.sql",
+        host: "localhost",
+        user: "root",
+        password: "secret",
+        name: "database_name",
+        socket: "/tmp/mysql.sock",
+        mysql_options: "--socket=/tmp/mysql.sock --protocol=TCP"
+      )
+
+      expect(command.scan(/--socket(?:=|\s+)/).size).to eq(1)
     end
   end
 

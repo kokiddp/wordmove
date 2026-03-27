@@ -72,11 +72,27 @@ module Wordmove
       end
 
       def config
-        wp_definitions.each_with_object(defaults) do |(key, definition), result|
+        config = wp_definitions.each_with_object(defaults) do |(key, definition), result|
           wp_config.match(wp_definition_regex(definition)) do |match|
             result[key] = match[:value]
           end
         end
+
+        normalize_host_config(config)
+      end
+
+      def normalize_host_config(config)
+        host = config[:host].to_s
+
+        if host.match(/\A(?<hostname>[^:]+):(?<socket>\/.+)\z/)
+          config[:host] = Regexp.last_match[:hostname]
+          config[:socket] = Regexp.last_match[:socket]
+        elsif host.match(/\A(?<hostname>[^:]+):(?<port>\d+)\z/)
+          config[:host] = Regexp.last_match[:hostname]
+          config[:port] = Regexp.last_match[:port]
+        end
+
+        config
       end
     end
   end
